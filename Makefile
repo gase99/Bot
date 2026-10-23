@@ -5,7 +5,6 @@ VENV ?= .venv
 PYTHON ?= $(VENV)/bin/python
 PIP ?= $(VENV)/bin/pip
 RUFF ?= $(VENV)/bin/ruff
-PYTEST ?= $(VENV)/bin/pytest
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
@@ -43,10 +42,10 @@ format: install-dev ## Auto-format with ruff
 	$(RUFF) check --fix app tests
 
 test: install-dev ## Run the unit tests
-	$(PYTEST) -q
+	$(PYTHON) -m pytest -q
 
 cov: install-dev ## Run the tests with coverage
-	$(PYTEST) --cov=app --cov-report=term-missing
+	$(PYTHON) -m pytest --cov=app --cov-report=term-missing
 
 check: lint test ## Lint + test (what CI runs)
 

@@ -454,7 +454,7 @@ curl -s http://localhost:8443/healthz
 ```bash
 pip install -r requirements-dev.txt
 ruff check .        # همان کاری که CI می‌کند
-pytest -q           # ۴۳ تست، بدون نیاز به شبکه یا کلید
+python -m pytest -q # ۴۳ تست، بدون نیاز به شبکه یا کلید
 make cov            # گزارش پوشش
 ```
 
@@ -470,7 +470,7 @@ make cov            # گزارش پوشش
 - امنیت وب‌هوک (توکن مخفی اشتباه → ۴۰۱) و اعتبارسنجی تنظیمات
 
 CI (`.github/workflows/ci.yml`) روی هر push/PR به `main` اجرا می‌شود: نصب وابستگی‌ها →
-`ruff check .` → `pytest -q` → smoke import → build تصویر Docker.
+`ruff check .` → `python -m pytest -q` → smoke import → build تصویر Docker.
 
 ---
 
