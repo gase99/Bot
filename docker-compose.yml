@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------------
+# Local / self-hosted deployment:  docker compose up -d --build
+# Values come from .env (see .env.example).
+# ---------------------------------------------------------------------------
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: telegram-beatapi-bot:latest
+    container_name: telegram-beatapi-bot
+    env_file:
+      - .env
+    environment:
+      MODE: ${MODE:-webhook}
+      PORT: ${PORT:-8443}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${PORT:-8443}:${PORT:-8443}"
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import os,sys,urllib.request; mode=os.getenv('MODE','webhook').lower();
+          sys.exit(0) if mode!='webhook' else sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:%s/healthz' % os.getenv('PORT','8443'), timeout=4).status==200 else 1)"
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3

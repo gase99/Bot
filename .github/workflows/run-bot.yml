@@ -1,0 +1,80 @@
+name: Run bot (polling)
+
+# Keeps a long-polling instance alive without any external host.
+#
+# GitHub kills a job after 6 hours, so the bot stops itself gracefully after
+# POLLING_MAX_RUNTIME_SECONDS (5 h 30 min) and the last step dispatches the
+# next run. The schedule is a safety net if a run ever dies unexpectedly.
+# Scheduled workflows only run from the default branch.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every 5 hours at :55 — a new run starts before the 6-hour job limit.
+    - cron: "55 */5 * * *"
+
+permissions:
+  contents: read
+  actions: write # required for the self re-dispatch step
+
+concurrency:
+  group: telegram-bot-polling
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    name: Polling worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      MODE: polling
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      BEATAPI_API_KEY: ${{ secrets.BEATAPI_API_KEY }}
+      LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
+      POLLING_MAX_RUNTIME_SECONDS: "19800"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check that the required secrets exist
+        run: |
+          missing=0
+          if [ -z "${TELEGRAM_BOT_TOKEN}" ]; then
+            echo "::error::Repository secret TELEGRAM_BOT_TOKEN is not set (Settings → Secrets and variables → Actions)."
+            missing=1
+          fi
+          if [ -z "${BEATAPI_API_KEY}" ]; then
+            echo "::error::Repository secret BEATAPI_API_KEY is not set (Settings → Secrets and variables → Actions)."
+            missing=1
+          fi
+          exit "$missing"
+
+      - name: Run the bot in polling mode
+        id: bot
+        # The bot exits by itself after POLLING_MAX_RUNTIME_SECONDS. A crash
+        # must not re-dispatch, otherwise a broken config would loop forever.
+        continue-on-error: true
+        run: python -m app.main
+
+      - name: Chain the next run
+        if: steps.bot.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run run-bot.yml --ref "${{ github.ref_name }}"
+
+      - name: Fail the job when the bot crashed
+        if: steps.bot.outcome != 'success'
+        run: |
+          echo "::error::The polling worker exited with an error; the chain was not restarted. Check the logs above."
+          exit 1

@@ -1,0 +1,10 @@
+# Development / CI dependencies
+-r requirements.txt
+
+pytest>=8.2,<9.0
+pytest-cov>=5.0,<8.0
+
+# Pinned so `ruff check .` keeps the same rule set in CI and locally.
+# Newer releases enable new rules by default and would turn the build red
+# without any code change.
+ruff==0.17.2
